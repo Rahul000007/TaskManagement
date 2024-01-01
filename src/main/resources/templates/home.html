@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="ar" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <title>Add Task</title>
+</head>
+<body style="background: black" class="p-7">
+<h1 class="h-75 text-center text-white my-5">Task Management</h1>
+
+<div class="d-flex justify-content-start p-4">
+
+  <!--ADD New TASK FORM  -->
+  <div class="container mr-5 w-25">
+    <h3 class="text-primary">Add</h3>
+    <form>
+      <div class="form-group">
+        <label for="title" class="text-white mt-3">Title</label>
+        <input type="text" class="form-control mt-1" id="title" placeholder="Enter title">
+      </div>
+
+      <div class="form-group">
+        <label for="description" class="text-white mt-2">Description</label>
+        <textarea class="form-control mt-1" id="description" rows="3" placeholder="Enter description"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="text-white">Set Priority</label>
+        <div class="mt-1">
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="priority" id="priorityHigh" value="High">
+            <label class="form-check-label text-white" for="priorityHigh">High</label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="priority" id="priorityMedium" value="Medium">
+            <label class="form-check-label text-white" for="priorityMedium">Medium</label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="priority" id="priorityLow" value="Low">
+            <label class="form-check-label text-white" for="priorityLow">Low</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group ">
+        <label class="text-white">Status</label>
+        <div class="mt-1">
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="status" id="statusActive" value="Active">
+            <label class="form-check-label text-white" for="statusActive">Active</label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="status" id="statusDone" value="Done">
+            <label class="form-check-label text-white" for="statusDone">Done</label>
+          </div>
+        </div>
+      </div>
+      <button type="submit" class="btn px-4 mt-2 btn-primary" id="submitBtn">Add</button>
+    </form>
+  </div>
+
+  <div class="container ">
+
+    <h1 class="text-white mb-2">Tasks</h1>
+
+    <!--    FILTERS AND SEARCH -->
+    <div class="d-flex justify-content-between">
+
+      <div class="d-flex justify-content-start h-75">
+
+        <div class="d-flex justify-content-start">
+          <select id="statusFilter" class="form-control ml-2 btn-secondary" onchange="applyFilters()">
+            <option value="all">All Status</option>
+            <option value="active">Active</option>
+            <option value="done">Done</option>
+          </select>
+        </div>
+
+        <div>
+          <select id="priorityFilter" class="form-control ml-2 btn-secondary" onchange="applyFilters()">
+            <option value="all">All Priorities</option>
+            <option value="High">High</option>
+            <option value="Medium">Medium</option>
+            <option value="Low">Low</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="d-flex justify-content-end">
+        <div class="input-group d-flex ">
+          <div class="input-group-append mr-2">
+            <i class="fa fa-search fa-lg text-white m-auto" aria-hidden="true"></i>
+          </div>
+          <input type="text" id="searchInput" onkeyup="searchTasks(this.value)" class="form-control rounded" placeholder="Search...">
+        </div>
+      </div>
+    </div>
+
+    <!--  TASK CARDS  -->
+    <div id="taskContainer" class="d-flex justify-content-around flex-wrap mt-4"></div>
+
+    <!--    PAGINATION-->
+    <div class="d-flex justify-content-center m-auto">
+      <i class="fa fa-arrow-left fa-lg text-white mr-4 btn btn-dark" aria-hidden="true" id="prevPage"></i>
+      <i class="fa fa-arrow-right fa-lg text-white btn btn-dark" aria-hidden="true" id="nextPage"></i>
+    </div>
+
+  </div>
+
+
+</div>
+
+<!-- Bootstrap JS and jQuery  -->
+<script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+<script>
+   toastr.options = {
+      closeButton: true,
+      positionClass: 'toast-top-right',
+      preventDuplicates: true,
+      showDuration: '300',
+      hideDuration: '1000',
+      timeOut: '1500',
+      extendedTimeOut: '1000',
+   };
+</script>
+
+<script>
+   $(document).ready(function () {
+      var taskId = null
+      var currentPage = 0;
+
+      loadTasks(currentPage);
+
+      // DELETE TASK
+      $('#taskContainer').on('click', '.delete-task-icon', function () {
+         var taskId = $(this).data('task-id');
+         var card = $(this).closest('.card');
+         $.ajax({
+            type: 'DELETE',
+            url: '/admin/delete-task/' + taskId,
+            success: function (response) {
+               if (response.success) {
+                  card.remove();
+                  loadTasks(currentPage)
+                  toastr.success(response.message);
+               } else {
+                  toastr.error(response.message);
+               }
+            },
+            error: function (error) {
+               toastr.error('Error deleting task. Please try again.');
+               console.error(error);
+            }
+         });
+      });
+
+      // UPDATE TASK
+      $('#taskContainer').on('click', '.update-task-icon', function () {
+         taskId = $(this).data('update-task-id');
+         $.ajax({
+            type: 'GET',
+            url: '/admin/get-taskById/' + taskId,
+            success: function (response) {
+               fillFormForUpdate(response.responseObject);
+            },
+            error: function (error) {
+               toastr.error('Error fetching task details. Please try again.');
+               console.error(error);
+            }
+         });
+      });
+
+      // SUBMIT BUTTON CLICK
+      $('#submitBtn').on('click', function () {
+         if ($(this).text() === 'Update') {
+            updateTask(taskId);
+         } else {
+            submitForm();
+         }
+      });
+
+      $('#prevPage').on('click', function () {
+         if (currentPage > 0) {
+            currentPage--;
+            loadTasks(currentPage);
+         }
+      });
+
+      $('#nextPage').on('click', function () {
+         currentPage++;
+         loadTasks(currentPage);
+      });
+
+   });
+
+   function loadTasks(page) {
+      $.ajax({
+         type: 'GET',
+         url: '/admin/get-task',
+         data: {
+            page: page,
+            size: 6
+         },
+         success: function (response) {
+            if (response.success) {
+               displayTasks(response.responseObject.content);
+            } else {
+               toastr.error(response.message);
+            }
+         },
+         error: function (error) {
+            toastr.error('Error loading tasks. Please try again.');
+            console.error(error);
+         }
+      });
+   }
+
+   function displayTasks(tasks) {
+      var taskContainer = $('#taskContainer');
+      taskContainer.empty();
+      tasks.forEach(function (task) {
+         var cardHtml = createTaskCard(task);
+         taskContainer.append(cardHtml);
+      });
+   }
+
+   function createTaskCard(task) {
+      var statusColor = task.status === 'Active' ? 'blue' : '';
+      var cardHtml = `
+            <div class="card mb-3 bg-dark" style="width: 20rem;">
+               <div class="card-body">
+                  <h2 class="card-title text-white">` + task.title + `</h2>
+                  <p class="card-text text-white">` + task.description + `</p>
+               </div>
+               <div class="card-footer d-flex justify-content-between">
+                  <div class="d-flex">
+                     <div class="mr-2" style="background-color: ` + getPriorityColor(task.priority) + `;
+                     height: 17px; width: 17px;border-radius: 50%;"></div>
+                  </div>
+                  <div class="d-flex">
+                     <i class="fa fa-refresh fa-lg text-white mr-3 update-task-icon" style="cursor: pointer;" aria-hidden="true" data-update-task-id="` + task.id + `"></i>
+                     <i class="fa fa-trash  fa-lg text-white delete-task-icon " style="cursor: pointer;" aria-hidden="true" data-task-id="` + task.id + `"></i>
+                  </div>
+               </div>
+               ` +
+        (statusColor ? '<div class="blue-bar" style="background-color: ' + statusColor + '; height: 1px;"></div>' : '')
+        + `
+            </div>
+         `;
+
+      return cardHtml;
+   }
+
+   function getPriorityColor(priority) {
+      switch (priority) {
+         case 'High':
+            return 'red';
+         case 'Medium':
+            return 'green';
+         case 'Low':
+            return 'orange';
+         default:
+            return 'gray';
+      }
+   }
+
+   function submitForm() {
+      event.preventDefault();
+      if (!validateForm()) {
+         return;
+      }
+      var formData = {
+         title: $('#title').val(),
+         description: $('#description').val(),
+         priority: $('input[name=priority]:checked').val(),
+         status: $('input[name=status]:checked').val()
+      };
+      $.ajax({
+         type: 'POST',
+         url: '/admin/add-task',
+         contentType: 'application/json',
+         data: JSON.stringify(formData),
+         success: function (response) {
+            if (response.success) {
+               toastr.success(response.message);
+               $('#title').val('');
+               $('#description').val('');
+               $('input[name=priority]').prop('checked', false);
+               $('input[name=status]').prop('checked', false);
+               loadTasks();
+            } else {
+               toastr.error(response.message)
+            }
+         },
+         error: function (error) {
+            toastr.error('Error adding task. Please try again.');
+         }
+      });
+   }
+
+   function updateTask(taskId) {
+      event.preventDefault();
+      if (!validateForm()) {
+         return;
+      }
+      var formData = {
+         id: taskId,
+         title: $('#title').val(),
+         description: $('#description').val(),
+         priority: $('input[name=priority]:checked').val(),
+         status: $('input[name=status]:checked').val()
+      };
+
+      $.ajax({
+         type: 'PUT',
+         url: '/admin/update-task/',
+         contentType: 'application/json',
+         data: JSON.stringify(formData),
+         success: function (response) {
+            if (response.success) {
+               toastr.success(response.message);
+               $('#title').val('');
+               $('#description').val('');
+               $('input[name=priority]').prop('checked', false);
+               $('input[name=status]').prop('checked', false);
+               loadTasks();
+               $('#submitBtn').text('Add');
+            } else {
+               toastr.error(response.message);
+            }
+         },
+         error: function (error) {
+            toastr.error('Error Updating task. Please try again.');
+            console.error(error);
+         }
+      });
+   }
+
+   function validateForm() {
+      var title = $('#title').val();
+      var description = $('#description').val();
+      var priority = $('input[name=priority]:checked').val();
+      var status = $('input[name=status]:checked').val();
+      if (!title || !description || !priority || !status) {
+         toastr.error('Please fill in all fields and make selections for priority and status.');
+         return false;
+      }
+      return true;
+   }
+
+   function fillFormForUpdate(task) {
+      $('#title').val(task.title);
+      $('#description').val(task.description);
+      $('input[name=priority][value=' + task.priority + ']').prop('checked', true);
+      $('input[name=status][value=' + task.status + ']').prop('checked', true);
+      $('#submitBtn').text('Update');
+   }
+
+   function searchTasks(keyword) {
+      $.ajax({
+         type: 'GET',
+         url: '/admin/search-task',
+         data: {
+            keyword: keyword
+         },
+         success: function (response) {
+            if (response.success) {
+               displayTasks(response.responseObject);
+            } else {
+               toastr.error(response.message);
+            }
+         },
+         error: function (error) {
+            toastr.error('Error searching tasks. Please try again.');
+            console.error(error);
+         }
+      });
+   }
+
+   function applyFilters() {
+      var statusFilter = $('#statusFilter').val();
+      var priorityFilter = $('#priorityFilter').val();
+
+      $.ajax({
+         type: 'GET',
+         url: '/admin/filter-tasks',
+         data: { status: statusFilter, priorityFilter: priorityFilter},
+         success: function(response) {
+            if (response.success) {
+               displayTasks(response.responseObject.content);
+            } else {
+               toastr.error(response.message);
+            }
+         },
+         error: function(error) {
+            toastr.error('Error applying filters. Please try again.');
+            console.error(error);
+         }
+      });
+   }
+
+</script>
+</body>
+
+</html>
